@@ -1,9 +1,11 @@
-import { IsDateString, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+import {
+  IsDateString,
+  IsNumber,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 
 export class CreateRecordDto {
-  @IsNumber()
-  orderNumber: number;
-
   @IsDateString()
   date: string;
 
@@ -14,7 +16,7 @@ export class CreateRecordDto {
   @IsNumber()
   bolsonNumber?: number;
 
-  @IsOptional()
+
   @IsString()
   loteNumber?: string;
 
@@ -37,7 +39,4 @@ export class CreateRecordDto {
   @IsOptional()
   @IsString()
   cereal?: string;
-
-  @IsString()
-  lotCode: string; // code que ingresa el operario
 }

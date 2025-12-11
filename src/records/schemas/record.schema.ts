@@ -36,10 +36,10 @@ export class RecordEntry {
   cereal?: string;
 
   @Prop({ required: true })
-  lotId: Types.ObjectId; // referencia al lote
+  lotId: Types.ObjectId;
 
-  @Prop({ required: true })
-  createdBy: string; // userId
+  @Prop({ default: 'system' })
+  createdBy: string;
 }
 
 export const RecordSchema = SchemaFactory.createForClass(RecordEntry);

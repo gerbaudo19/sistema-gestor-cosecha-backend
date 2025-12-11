@@ -10,6 +10,37 @@ import { UpdateLotDto } from './dto/update-lot.dto';
 export class LotsService {
   constructor(@InjectModel(Lot.name) private lotModel: Model<LotDocument>) {}
 
+  // =======================
+  // LOTE ACTIVO EN MEMORIA
+  // =======================
+  private activeLotCode: string | null = null;
+
+  async setActiveLot(code: string) {
+    // Desactivar todos
+    await this.lotModel.updateMany({}, { active: false });
+
+    // Buscar el lote por código
+    const lot = await this.lotModel.findOneAndUpdate(
+      { code },
+      { active: true },
+      { new: true },
+    );
+
+    if (!lot) {
+      throw new Error('Lote no encontrado');
+    }
+
+    return lot;
+  }
+
+  async getActiveLot() {
+    if (!this.activeLotCode) return null;
+    return this.findByCode(this.activeLotCode);
+  }
+
+  // =======================
+  // CRUD
+  // =======================
   async create(dto: CreateLotDto) {
     const code = generateCode();
     const lot = new this.lotModel({ ...dto, code, active: true });
@@ -28,10 +59,16 @@ export class LotsService {
     return this.lotModel.findByIdAndUpdate(id, { active: true }, { new: true });
   }
 
+  // =======================
+  // BUSCAR POR CÓDIGO
+  // =======================
   async findByCode(code: string) {
-  return this.lotModel.findOne({ code, active: true }).exec();
+    return this.lotModel.findOne({ code, active: true }).exec();
   }
 
+  // =======================
+  // SEARCH
+  // =======================
   async search(filters: {
     code?: string;
     name?: string;
@@ -82,4 +119,6 @@ export class LotsService {
       data,
     };
   }
+
+  
 }

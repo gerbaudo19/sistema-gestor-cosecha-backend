@@ -7,38 +7,42 @@ export class ExportService {
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet('Registros');
 
-    // Encabezados
+    // Encabezados en español
     ws.columns = [
-      { header: 'OrderNumber', key: 'orderNumber', width: 12 },
-      { header: 'Date', key: 'date', width: 20 },
-      { header: 'Kilograms', key: 'kilograms', width: 12 },
+      { header: 'Número de Orden', key: 'orderNumber', width: 15 },
+      { header: 'Fecha', key: 'date', width: 20 },
+      { header: 'Kilogramos', key: 'kilograms', width: 12 },
       { header: 'Bolson', key: 'bolsonNumber', width: 10 },
-      { header: 'LoteNumber', key: 'loteNumber', width: 12 },
-      { header: 'TruckPlate', key: 'truckPlate', width: 15 },
-      { header: 'TruckDriver', key: 'truckDriver', width: 20 },
-      { header: 'Tolvero', key: 'tolvero', width: 20 },
-      { header: 'Controller', key: 'controller', width: 20 },
+      { header: 'Número de Lote', key: 'loteNumber', width: 15 },
+      { header: 'Patente Camión', key: 'truckPlate', width: 15 },
+      { header: 'Chofer', key: 'truckDriver', width: 20 },
+      { header: 'Tolvero', key: 'tolvero', width: 20 },      // Header en Excel = "Tolvero"
+      { header: 'Controlador', key: 'controller', width: 20 }, // Header en Excel = "Controlador"
       { header: 'Cereal', key: 'cereal', width: 15 },
-      { header: 'CreatedBy', key: 'createdBy', width: 25 },
+      { header: 'Creado Por', key: 'createdBy', width: 25 },
     ];
 
+    // Agregar filas
     records.forEach((r) => {
       ws.addRow({
         orderNumber: r.orderNumber,
-        date: r.date,
+        date: r.date ? new Date(r.date) : null,
         kilograms: r.kilograms,
         bolsonNumber: r.bolsonNumber,
         loteNumber: r.loteNumber,
         truckPlate: r.truckPlate,
         truckDriver: r.truckDriver,
-        tolvero: r.tolvero,
-        controller: r.controller,
+        tolvero: r.tolvero, // debe coincidir con key 'tolvero'
+        controller: r.controller, // debe coincidir con key 'controller'
         cereal: r.cereal,
         createdBy: r.createdBy,
       });
     });
 
-    const buf = await wb.xlsx.writeBuffer();
-    return Buffer.from(buf);
+    // Formato de fecha
+    ws.getColumn('date').numFmt = 'yyyy-mm-dd HH:mm';
+
+    const buffer = await wb.xlsx.writeBuffer();
+    return Buffer.from(buffer);
   }
 }
