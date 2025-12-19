@@ -12,7 +12,10 @@ import {
 import { LotsService } from './lots.service';
 import { CreateLotDto } from './dto/create-lot.dto';
 import { UpdateLotDto } from './dto/update-lot.dto';
+import { UseGuards } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
+@UseGuards(JwtAuthGuard)
 @Controller('lots')
 export class LotsController {
   constructor(private readonly lotsService: LotsService) {}

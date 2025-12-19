@@ -16,8 +16,8 @@ export class ExportService {
       { header: 'Número de Lote', key: 'loteNumber', width: 15 },
       { header: 'Patente Camión', key: 'truckPlate', width: 15 },
       { header: 'Chofer', key: 'truckDriver', width: 20 },
-      { header: 'Tolvero', key: 'tolvero', width: 20 },      // Header en Excel = "Tolvero"
-      { header: 'Controlador', key: 'controller', width: 20 }, // Header en Excel = "Controlador"
+      { header: 'Tolvero', key: 'tolvero', width: 20 },  
+      { header: 'Controlador', key: 'controller', width: 20 }, 
       { header: 'Cereal', key: 'cereal', width: 15 },
       { header: 'Creado Por', key: 'createdBy', width: 25 },
     ];
@@ -32,8 +32,8 @@ export class ExportService {
         loteNumber: r.loteNumber,
         truckPlate: r.truckPlate,
         truckDriver: r.truckDriver,
-        tolvero: r.tolvero, // debe coincidir con key 'tolvero'
-        controller: r.controller, // debe coincidir con key 'controller'
+        tolvero: r.tolvero,
+        controller: r.controller, 
         cereal: r.cereal,
         createdBy: r.createdBy,
       });

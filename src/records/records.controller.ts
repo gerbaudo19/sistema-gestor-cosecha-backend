@@ -9,12 +9,15 @@ import {
   Put,
   Query,
   Res,
+  UseGuards,
 } from '@nestjs/common';
 import type { Response } from 'express';
+
 import { RecordsService } from './records.service';
 import { CreateRecordDto } from './dto/create-record.dto';
 import { AuditService } from '../audit/audit.service';
 import { ExportService } from '../export/export.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @Controller('records')
 export class RecordsController {
@@ -24,36 +27,44 @@ export class RecordsController {
     private readonly exportService: ExportService,
   ) {}
 
-  // ============ ASIGNAR LOTE ============
+  // ===================== ADMIN / SISTEMA =====================
+
+  // Asignar lote activo (solo usuario logueado)
+  @UseGuards(JwtAuthGuard)
   @Post('assign-lot')
   assignLot(@Body('lotCode') lotCode: string) {
     return this.recordsService.assignActiveLot(lotCode);
   }
 
-  // ============ CREATE ============
-  @Post()
-  async create(@Body() dto: CreateRecordDto) {
-    return this.recordsService.create(dto);
-  }
-
-  // ============ UPDATE ============
+  // Update registro (solo usuario)
+  @UseGuards(JwtAuthGuard)
   @Put(':id')
   update(@Param('id') id: string, @Body() dto: any) {
     return this.recordsService.update(id, dto);
   }
 
-  // ============ DELETE ============
+  // Delete registro (solo usuario)
+  @UseGuards(JwtAuthGuard)
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.recordsService.delete(id);
   }
 
-  // ============ LIST ============
+  // ===================== PUBLICO POR LOTE =====================
+
+  // Crear registro (tolveros / controladores)
+  @Post()
+  async create(@Body() dto: CreateRecordDto) {
+    return this.recordsService.create(dto);
+  }
+
+  // Listar registros por lote
   @Get('lot/:lotId')
   listByLot(@Param('lotId') lotId: string) {
     return this.recordsService.listByLot(lotId);
   }
 
+  // Listar por lote y día
   @Get('lot/:lotId/day')
   listByLotAndDay(
     @Param('lotId') lotId: string,
@@ -62,7 +73,7 @@ export class RecordsController {
     return this.recordsService.listByLotAndDay(lotId, new Date(date));
   }
 
-  // ============ SEARCH ============
+  // Búsqueda avanzada
   @Get('search')
   search(
     @Query('lotId') lotId?: string,
@@ -84,7 +95,9 @@ export class RecordsController {
     });
   }
 
-  // ============ CIERRE ============
+  // ===================== CIERRES (ADMIN) =====================
+
+  @UseGuards(JwtAuthGuard)
   @Post('close-day/:lotId')
   async closeDay(
     @Param('lotId') lotId: string,
@@ -102,7 +115,7 @@ export class RecordsController {
     };
   }
 
-  // ============ REOPEN ============
+  @UseGuards(JwtAuthGuard)
   @Post('reopen-day/:lotId')
   async reopenDay(
     @Param('lotId') lotId: string,
@@ -116,9 +129,14 @@ export class RecordsController {
     return { message: 'Día reabierto' };
   }
 
-  // ============ EXPORT LOT ============
+  // ===================== EXPORTS (ADMIN) =====================
+
+  @UseGuards(JwtAuthGuard)
   @Get('export/lot/:lotId')
-  @Header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+  @Header(
+    'Content-Type',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  )
   async exportLot(
     @Param('lotId') lotId: string,
     @Res() res: Response,
@@ -138,9 +156,12 @@ export class RecordsController {
     return res.send(buffer);
   }
 
-  // ============ EXPORT LOT + DAY ============
+  @UseGuards(JwtAuthGuard)
   @Get('export/lot/:lotId/day')
-  @Header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+  @Header(
+    'Content-Type',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  )
   async exportLotDay(
     @Param('lotId') lotId: string,
     @Query('date') date: string,
@@ -164,3 +185,4 @@ export class RecordsController {
     return res.send(buffer);
   }
 }
+

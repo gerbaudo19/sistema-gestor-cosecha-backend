@@ -3,12 +3,6 @@ import { Document } from 'mongoose';
 
 export type UserDocument = User & Document;
 
-export enum Role {
-  ADMIN = 'ADMIN',
-  OPERARIO = 'OPERARIO',
-  CONTROLADOR = 'CONTROLADOR',
-}
-
 @Schema({ timestamps: true })
 export class User {
   @Prop({ required: true })
@@ -20,8 +14,8 @@ export class User {
   @Prop({ required: true })
   password: string;
 
-  @Prop({ enum: Role, default: Role.OPERARIO })
-  role: Role;
+  @Prop({ default: false })
+  isAdmin: boolean;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
