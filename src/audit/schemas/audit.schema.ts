@@ -3,29 +3,22 @@ import { Document, Types } from 'mongoose';
 
 export type AuditDocument = Audit & Document;
 
-@Schema({ timestamps: true })
+@Schema({ timestamps: { createdAt: true, updatedAt: false } })
 export class Audit {
-  @Prop()
-  action: string;
+  @Prop({ required: true })
+  action: string; 
 
-  @Prop({ type: Types.ObjectId })
+  @Prop({ type: Types.ObjectId, index: true })
   recordId?: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId })
-  lotId?: Types.ObjectId;
+  @Prop({ type: Types.ObjectId, index: true, required: true })
+  lotId: Types.ObjectId;
 
-  @Prop()
-  field?: string;
+  @Prop({ type: Array, default: [] })
+  changes?: { field: string; before: any; after: any }[];
 
-  @Prop({ type: Array })
-  changes?: {
-    field: string;
-    before: any;
-    after: any;
-  }[];
-
-  @Prop()
-  userId?: string;
+  @Prop({ required: true })
+  userId: string;
 
   @Prop({ type: Object })
   meta?: any;
@@ -33,3 +26,22 @@ export class Audit {
 
 export const AuditSchema = SchemaFactory.createForClass(Audit);
 
+// SRP: Clase utilitaria para comparar objetos
+export class ChangeDetector {
+  static compare(before: any, after: any): { field: string; before: any; after: any }[] {
+    const changes: { field: string; before: any; after: any }[] = [];
+    const ignore = ['_id', '__v', 'updatedAt', 'createdAt', 'lotId', 'orderNumber'];
+
+    for (const key in after) {
+      if (ignore.includes(key)) continue;
+      
+      const valBefore = before[key];
+      const valAfter = after[key];
+
+      if (JSON.stringify(valBefore) !== JSON.stringify(valAfter)) {
+        changes.push({ field: key, before: valBefore, after: valAfter });
+      }
+    }
+    return changes;
+  }
+}

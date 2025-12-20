@@ -1,3 +1,4 @@
+// src/records/records.controller.ts
 import {
   Body,
   Controller,
@@ -10,9 +11,9 @@ import {
   Query,
   Res,
   UseGuards,
+  Request,
 } from '@nestjs/common';
 import type { Response } from 'express';
-
 import { RecordsService } from './records.service';
 import { CreateRecordDto } from './dto/create-record.dto';
 import { AuditService } from '../audit/audit.service';
@@ -27,162 +28,87 @@ export class RecordsController {
     private readonly exportService: ExportService,
   ) {}
 
-  // ===================== ADMIN / SISTEMA =====================
+  // ============ AUDITORÍA / HISTORIAL ============
 
-  // Asignar lote activo (solo usuario logueado)
+  @UseGuards(JwtAuthGuard)
+  @Get('lot/:lotId/history')
+  async getHistory(@Param('lotId') lotId: string) {
+    // Este método devuelve todos los cambios, creaciones y cierres del lote
+    return this.auditService.getHistoryByLot(lotId);
+  }
+
+  // ============ ACCIONES ADMIN ============
+
   @UseGuards(JwtAuthGuard)
   @Post('assign-lot')
   assignLot(@Body('lotCode') lotCode: string) {
     return this.recordsService.assignActiveLot(lotCode);
   }
 
-  // Update registro (solo usuario)
   @UseGuards(JwtAuthGuard)
   @Put(':id')
-  update(@Param('id') id: string, @Body() dto: any) {
-    return this.recordsService.update(id, dto);
+  update(@Param('id') id: string, @Body() dto: any, @Request() req) {
+    return this.recordsService.update(id, dto, req.user.userId);
   }
 
-  // Delete registro (solo usuario)
   @UseGuards(JwtAuthGuard)
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.recordsService.delete(id);
+  remove(@Param('id') id: string, @Request() req) {
+    return this.recordsService.delete(id, req.user.userId);
   }
 
-  // ===================== PUBLICO POR LOTE =====================
+  // ============ PUBLICO / REGISTROS ============
 
-  // Crear registro (tolveros / controladores)
   @Post()
   async create(@Body() dto: CreateRecordDto) {
-    return this.recordsService.create(dto);
+    return this.recordsService.create(dto, 'public_user');
   }
 
-  // Listar registros por lote
   @Get('lot/:lotId')
   listByLot(@Param('lotId') lotId: string) {
     return this.recordsService.listByLot(lotId);
   }
 
-  // Listar por lote y día
   @Get('lot/:lotId/day')
-  listByLotAndDay(
-    @Param('lotId') lotId: string,
-    @Query('date') date: string,
-  ) {
+  listByLotAndDay(@Param('lotId') lotId: string, @Query('date') date: string) {
     return this.recordsService.listByLotAndDay(lotId, new Date(date));
   }
 
-  // Búsqueda avanzada
   @Get('search')
-  search(
-    @Query('lotId') lotId?: string,
-    @Query('orderNumber') orderNumber?: string,
-    @Query('dateFrom') dateFrom?: string,
-    @Query('dateTo') dateTo?: string,
-    @Query('truckPlate') truckPlate?: string,
-    @Query('truckDriver') truckDriver?: string,
-    @Query('cereal') cereal?: string,
-  ) {
+  search(@Query() filters: any) {
     return this.recordsService.search({
-      lotId,
-      orderNumber: orderNumber ? Number(orderNumber) : undefined,
-      dateFrom: dateFrom ? new Date(dateFrom) : undefined,
-      dateTo: dateTo ? new Date(dateTo) : undefined,
-      truckPlate,
-      truckDriver,
-      cereal,
+      ...filters,
+      orderNumber: filters.orderNumber ? Number(filters.orderNumber) : undefined,
+      dateFrom: filters.dateFrom ? new Date(filters.dateFrom) : undefined,
+      dateTo: filters.dateTo ? new Date(filters.dateTo) : undefined,
     });
   }
 
-  // ===================== CIERRES (ADMIN) =====================
+  // ============ GESTIÓN DE JORNADA ============
 
   @UseGuards(JwtAuthGuard)
   @Post('close-day/:lotId')
-  async closeDay(
-    @Param('lotId') lotId: string,
-    @Body('date') dateStr: string,
-  ) {
-    const day = new Date(dateStr);
-
-    await this.auditService.closeDay(lotId, day, 'system');
-
-    const records = await this.recordsService.listByLotAndDay(lotId, day);
-
-    return {
-      message: 'Día cerrado',
-      totalRecords: records.length,
-    };
+  async closeDay(@Param('lotId') lotId: string, @Body('date') date: string, @Request() req) {
+    await this.auditService.closeDay(lotId, new Date(date), req.user.userId);
+    return { message: 'Día cerrado' };
   }
 
   @UseGuards(JwtAuthGuard)
   @Post('reopen-day/:lotId')
-  async reopenDay(
-    @Param('lotId') lotId: string,
-    @Body('date') dateStr: string,
-    @Body('reason') reason: string,
-  ) {
-    const day = new Date(dateStr);
-
-    await this.auditService.reopenDay(lotId, day, 'system', reason);
-
+  async reopenDay(@Param('lotId') lotId: string, @Body('date') date: string, @Body('reason') reason: string, @Request() req) {
+    await this.auditService.reopenDay(lotId, new Date(date), req.user.userId, reason);
     return { message: 'Día reabierto' };
   }
 
-  // ===================== EXPORTS (ADMIN) =====================
+  // ============ EXPORTS ============
 
   @UseGuards(JwtAuthGuard)
   @Get('export/lot/:lotId')
-  @Header(
-    'Content-Type',
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  )
-  async exportLot(
-    @Param('lotId') lotId: string,
-    @Res() res: Response,
-  ) {
+  async exportLot(@Param('lotId') lotId: string, @Res() res: Response) {
     const records = await this.recordsService.exportByLot(lotId);
-
-    const buffer = await this.exportService.exportRecordsToExcel(
-      records,
-      `lot_${lotId}.xlsx`,
-    );
-
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="lot_${lotId}.xlsx"`,
-    );
-
-    return res.send(buffer);
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Get('export/lot/:lotId/day')
-  @Header(
-    'Content-Type',
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  )
-  async exportLotDay(
-    @Param('lotId') lotId: string,
-    @Query('date') date: string,
-    @Res() res: Response,
-  ) {
-    const records = await this.recordsService.exportByLotAndDay(
-      lotId,
-      new Date(date),
-    );
-
-    const buffer = await this.exportService.exportRecordsToExcel(
-      records,
-      `lot_${lotId}_${date}.xlsx`,
-    );
-
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="lot_${lotId}_${date}.xlsx"`,
-    );
-
+    const buffer = await this.exportService.exportRecordsToExcel(records, `lot_${lotId}.xlsx`);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="lot_${lotId}.xlsx"`);
     return res.send(buffer);
   }
 }
-
