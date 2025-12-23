@@ -1,10 +1,8 @@
-// src/records/records.controller.ts
 import {
   Body,
   Controller,
   Delete,
   Get,
-  Header,
   Param,
   Post,
   Put,
@@ -14,12 +12,25 @@ import {
   Request,
 } from '@nestjs/common';
 import type { Response } from 'express';
+
 import { RecordsService } from './records.service';
 import { CreateRecordDto } from './dto/create-record.dto';
 import { AuditService } from '../audit/audit.service';
 import { ExportService } from '../export/export.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { LotAuthGuard } from '../auth-lote/lot-auth.guard';
+
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiSecurity,
+  ApiBody,
+} from '@nestjs/swagger';
+
+@ApiTags('Records')
 @Controller('records')
 export class RecordsController {
   constructor(
@@ -28,87 +39,118 @@ export class RecordsController {
     private readonly exportService: ExportService,
   ) {}
 
-  // ============ AUDITORÍA / HISTORIAL ============
-
+  // ================== AUDITORÍA (ADMIN) ==================
+  @ApiBearerAuth('user-jwt')
   @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Historial de auditoría de un lote' })
   @Get('lot/:lotId/history')
-  async getHistory(@Param('lotId') lotId: string) {
-    // Este método devuelve todos los cambios, creaciones y cierres del lote
+  getHistory(@Param('lotId') lotId: string) {
     return this.auditService.getHistoryByLot(lotId);
   }
 
-  // ============ ACCIONES ADMIN ============
-
-  @UseGuards(JwtAuthGuard)
-  @Post('assign-lot')
-  assignLot(@Body('lotCode') lotCode: string) {
-    return this.recordsService.assignActiveLot(lotCode);
+  // ================== CREATE (OPERARIO) ==================
+  @ApiSecurity('lot-token')
+  @UseGuards(LotAuthGuard)
+  @ApiOperation({ summary: 'Crear orden de carga para el lote activo' })
+  @ApiResponse({ status: 201, description: 'Orden creada correctamente' })
+  @ApiResponse({ status: 401, description: 'Token de lote inválido o inexistente' })
+  @Post()
+  create(@Body() dto: CreateRecordDto, @Request() req) {
+    return this.recordsService.create(dto, req.lot.lotId);
   }
 
-  @UseGuards(JwtAuthGuard)
+  // ================== UPDATE (OPERARIO) ==================
+  @ApiSecurity('lot-token')
+  @UseGuards(LotAuthGuard)
+  @ApiOperation({ summary: 'Actualizar una orden del lote activo' })
+  @ApiResponse({ status: 200, description: 'Orden actualizada correctamente' })
+  @ApiResponse({ status: 403, description: 'La orden no pertenece al lote activo' })
+  @ApiBody({ type: CreateRecordDto }) // <-- esto hace que Swagger muestre todos los campos
   @Put(':id')
-  update(@Param('id') id: string, @Body() dto: any, @Request() req) {
-    return this.recordsService.update(id, dto, req.user.userId);
+  update(
+    @Param('id') id: string,
+    @Body() dto: CreateRecordDto, // antes estaba any
+    @Request() req,
+  ) {
+    return this.recordsService.update(id, dto, req.lot.lotId);
   }
 
+
+  // ================== DELETE (ADMIN) ==================
+  @ApiBearerAuth('user-jwt')
   @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Eliminar una orden (admin)' })
   @Delete(':id')
   remove(@Param('id') id: string, @Request() req) {
     return this.recordsService.delete(id, req.user.userId);
   }
 
-  // ============ PUBLICO / REGISTROS ============
-
-  @Post()
-  async create(@Body() dto: CreateRecordDto) {
-    return this.recordsService.create(dto, 'public_user');
+  // ================== LISTADOS (OPERARIO) ==================
+  @ApiSecurity('lot-token')
+  @UseGuards(LotAuthGuard)
+  @ApiOperation({ summary: 'Listar órdenes del lote activo' })
+  @Get('lot')
+  listMyLot(@Request() req) {
+    return this.recordsService.listByLot(req.lot.lotId);
   }
 
-  @Get('lot/:lotId')
-  listByLot(@Param('lotId') lotId: string) {
-    return this.recordsService.listByLot(lotId);
+  @ApiSecurity('lot-token')
+  @UseGuards(LotAuthGuard)
+  @ApiOperation({ summary: 'Listar órdenes del lote activo por día' })
+  @Get('lot/day')
+  listMyLotByDay(
+    @Request() req,
+    @Query('date') date: string,
+  ) {
+    return this.recordsService.listByLotAndDay(
+      req.lot.lotId,
+      new Date(date),
+    );
   }
 
-  @Get('lot/:lotId/day')
-  listByLotAndDay(@Param('lotId') lotId: string, @Query('date') date: string) {
-    return this.recordsService.listByLotAndDay(lotId, new Date(date));
-  }
-
+  // ================== SEARCH (OPERARIO) ==================
+  @ApiSecurity('lot-token')
+  @UseGuards(LotAuthGuard)
+  @ApiOperation({ summary: 'Buscar órdenes dentro del lote activo' })
   @Get('search')
-  search(@Query() filters: any) {
+  search(@Query() filters: any, @Request() req) {
     return this.recordsService.search({
       ...filters,
-      orderNumber: filters.orderNumber ? Number(filters.orderNumber) : undefined,
-      dateFrom: filters.dateFrom ? new Date(filters.dateFrom) : undefined,
-      dateTo: filters.dateTo ? new Date(filters.dateTo) : undefined,
+      lotId: req.lot.lotId, // 🔐 forzado desde el token
+      orderNumber: filters.orderNumber
+        ? Number(filters.orderNumber)
+        : undefined,
+      dateFrom: filters.dateFrom
+        ? new Date(filters.dateFrom)
+        : undefined,
+      dateTo: filters.dateTo
+        ? new Date(filters.dateTo)
+        : undefined,
     });
   }
 
-  // ============ GESTIÓN DE JORNADA ============
-
+  // ================== EXPORT (ADMIN) ==================
+  @ApiBearerAuth('user-jwt')
   @UseGuards(JwtAuthGuard)
-  @Post('close-day/:lotId')
-  async closeDay(@Param('lotId') lotId: string, @Body('date') date: string, @Request() req) {
-    await this.auditService.closeDay(lotId, new Date(date), req.user.userId);
-    return { message: 'Día cerrado' };
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Post('reopen-day/:lotId')
-  async reopenDay(@Param('lotId') lotId: string, @Body('date') date: string, @Body('reason') reason: string, @Request() req) {
-    await this.auditService.reopenDay(lotId, new Date(date), req.user.userId, reason);
-    return { message: 'Día reabierto' };
-  }
-
-  // ============ EXPORTS ============
-
-  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Exportar órdenes de un lote a Excel' })
   @Get('export/lot/:lotId')
   async exportLot(@Param('lotId') lotId: string, @Res() res: Response) {
     const records = await this.recordsService.exportByLot(lotId);
-    const buffer = await this.exportService.exportRecordsToExcel(records, `lot_${lotId}.xlsx`);
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename="lot_${lotId}.xlsx"`);
+
+    const buffer = await this.exportService.exportRecordsToExcel(
+      records,
+      `lot_${lotId}.xlsx`,
+    );
+
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="lot_${lotId}.xlsx"`,
+    );
+
     return res.send(buffer);
   }
 }

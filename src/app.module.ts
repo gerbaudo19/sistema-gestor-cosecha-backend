@@ -8,6 +8,7 @@ import { LotsModule } from './lots/lots.module';
 import { RecordsModule } from './records/records.module';
 import { AuditModule } from './audit/audit.module';
 import { ExportService } from './export/export.service';
+import { LotAuthModule } from './auth-lote/lot-auth.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { ExportService } from './export/export.service';
     LotsModule,
     RecordsModule,
     AuditModule,
+    LotAuthModule,
   ],
   providers: [ExportService],
 })
