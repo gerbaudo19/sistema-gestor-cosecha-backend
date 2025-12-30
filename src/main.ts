@@ -10,19 +10,25 @@ dotenv.config();
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  // ======= CORS GLOBAL (antes de cualquier otro middleware) =======
+  app.enableCors({
+    origin: 'http://localhost:3001', // <-- tu frontend
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    credentials: true,
+  });
+
+  // ======= VALIDACIÓN GLOBAL =======
   app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
 
-  // ================= SWAGGER =================
+  // ======= SWAGGER =======
   const config = new DocumentBuilder()
     .setTitle('API Registros')
     .setDescription('Documentación de la API del sistema de lotes y registros')
     .setVersion('1.0')
-    // JWT normal para usuarios/admin
     .addBearerAuth(
       { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
       'user-jwt',
     )
-    // Token exclusivo para operarios de lote
     .addApiKey(
       { type: 'apiKey', name: 'Authorization', in: 'header' },
       'lot-token',
@@ -31,9 +37,9 @@ async function bootstrap() {
 
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);
-  // ===========================================
 
   await app.listen(process.env.PORT || 3000);
   console.log(`App listening on port ${process.env.PORT || 3000}`);
 }
 bootstrap();
+
