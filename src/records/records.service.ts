@@ -37,18 +37,33 @@ export class RecordsService {
 
     await this.validateDayNotClosed(lotId, recordDate);
 
-    const lastRecord = await this.recordModel
-      .findOne({ lotId })
-      .sort({ orderNumber: -1 });
+    // Determine orderNumber
+    let orderNumber: number;
+    if (dto.orderNumber !== undefined) {
+      // If client supplied a number, ensure it's unique within the lot
+      const existing = await this.recordModel.findOne({
+        lotId,
+        orderNumber: dto.orderNumber,
+      });
+      if (existing) {
+        throw new HttpException(
+          `El número de orden ${dto.orderNumber} ya existe en este lote`,
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+      orderNumber = dto.orderNumber;
+    } else {
+      const lastRecord = await this.recordModel
+        .findOne({ lotId })
+        .sort({ orderNumber: -1 });
 
-    const nextOrderNumber = lastRecord
-      ? lastRecord.orderNumber + 1
-      : 1;
+      orderNumber = lastRecord ? lastRecord.orderNumber + 1 : 1;
+    }
 
     const record = new this.recordModel({
       ...dto,
       date: recordDate,
-      orderNumber: nextOrderNumber,
+      orderNumber,
       lotId: new Types.ObjectId(lotId),
       createdBy: 'lot_operator',
     });
@@ -60,7 +75,7 @@ export class RecordsService {
       recordId: saved._id,
       lotId: new Types.ObjectId(lotId),
       userId: 'lot_operator',
-      meta: { orderNumber: nextOrderNumber },
+      meta: { orderNumber },
     });
 
     return saved;
@@ -85,7 +100,23 @@ export class RecordsService {
 
     const stateBefore = existing.toObject();
 
-    const { lotId: _, orderNumber, ...updateData } = dto;
+    const { lotId: _, orderNumber: newOrderNumber, ...updateData } = dto;
+
+    // If orderNumber is being updated, check uniqueness
+    if (newOrderNumber !== undefined && newOrderNumber !== existing.orderNumber) {
+      const duplicate = await this.recordModel.findOne({
+        lotId,
+        orderNumber: newOrderNumber,
+        _id: { $ne: id },
+      });
+      if (duplicate) {
+        throw new HttpException(
+          `El número de orden ${newOrderNumber} ya existe en este lote`,
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+      existing.orderNumber = newOrderNumber;
+    }
 
     Object.assign(existing, updateData);
 

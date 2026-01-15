@@ -56,6 +56,7 @@ export class RecordsController {
   @ApiResponse({ status: 401, description: 'Token de lote inválido o inexistente' })
   @Post()
   create(@Body() dto: CreateRecordDto, @Request() req) {
+    // `orderNumber` es opcional; si no se envía se autogenera
     return this.recordsService.create(dto, req.lot.lotId);
   }
 
@@ -74,7 +75,6 @@ export class RecordsController {
   ) {
     return this.recordsService.update(id, dto, req.lot.lotId);
   }
-
 
   // ================== DELETE (ADMIN) ==================
   @ApiBearerAuth('user-jwt')

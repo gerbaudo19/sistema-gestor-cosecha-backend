@@ -43,3 +43,4 @@ export class RecordEntry {
 }
 
 export const RecordSchema = SchemaFactory.createForClass(RecordEntry);
+RecordSchema.index({ lotId: 1, orderNumber: 1 }, { unique: true });

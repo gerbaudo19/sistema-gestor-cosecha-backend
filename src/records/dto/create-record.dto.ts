@@ -34,7 +34,9 @@ export class CreateRecordDto {
     example: 'L-2025-01',
     description: 'Número o código de lote',
   })
-
+  @IsOptional()
+  @IsString()
+  loteNumber?: string;
 
   @ApiProperty({
     example: 'AA123BB',
@@ -80,4 +82,13 @@ export class CreateRecordDto {
   @IsOptional()
   @IsString()
   cereal?: string;
+
+  @ApiProperty({
+    example: 1,
+    required: false,
+    description: 'Número de orden (opcional, se autogenera si no se envía)',
+  })
+  @IsOptional()
+  @IsNumber()
+  orderNumber?: number;
 }
