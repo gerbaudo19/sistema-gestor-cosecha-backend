@@ -10,13 +10,14 @@ async function bootstrap() {
   // ======= CORS GLOBAL =======
   app.enableCors({
     origin: [
-      'http://localhost:5173',      // Vite local
-      'http://localhost:3001',      // por si usás otro puerto
-      'https://TU-FRONT.vercel.app' // prod (después lo cambiás)
+      'http://localhost:5173',
+      'http://localhost:3001',
+      'https://sistema-gestor-cosecha-frotend.onrender.com'
     ],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
   });
+
 
   // ======= VALIDACIÓN GLOBAL =======
   app.useGlobalPipes(
