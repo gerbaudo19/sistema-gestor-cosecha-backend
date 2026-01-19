@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: gestor-cosecha-backend
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm run start:prod
+    envVars:
+      - key: MONGODB_URI
+        fromDatabase: MONGODB_URI
+      - key: JWT_SECRET
+        fromDatabase: JWT_SECRET
+      - key: JWT_EXPIRES_IN
+        fromDatabase: JWT_EXPIRES_IN
+      - key: ADMIN_EMAIL
+        fromDatabase: ADMIN_EMAIL
+      - key: ADMIN_PASSWORD
+        fromDatabase: ADMIN_PASSWORD
+      - key: LOT_SECRET
+        fromDatabase: LOT_SECRET
+      - key: LOT_CODE_EXPIRES_IN
+        fromDatabase: LOT_CODE_EXPIRES_IN
+      - key: NODE_ENV
+        fromDatabase: NODE_ENV
+      - key: PORT
+        fromDatabase: PORT
