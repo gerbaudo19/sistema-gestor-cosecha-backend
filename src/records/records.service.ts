@@ -37,28 +37,13 @@ export class RecordsService {
 
     await this.validateDayNotClosed(lotId, recordDate);
 
-    // Determine orderNumber
-    let orderNumber: number;
-    if (dto.orderNumber !== undefined) {
-      // If client supplied a number, ensure it's unique within the lot
-      const existing = await this.recordModel.findOne({
-        lotId,
-        orderNumber: dto.orderNumber,
-      });
-      if (existing) {
-        throw new HttpException(
-          `El número de orden ${dto.orderNumber} ya existe en este lote`,
-          HttpStatus.BAD_REQUEST,
-        );
-      }
-      orderNumber = dto.orderNumber;
-    } else {
-      const lastRecord = await this.recordModel
-        .findOne({ lotId })
-        .sort({ orderNumber: -1 });
+    // EL BACKEND SIEMPRE CALCULA EL orderNumber
+    const lastRecord = await this.recordModel
+      .findOne({ lotId: new Types.ObjectId(lotId) })
+      .sort({ orderNumber: -1 })
+      .select('orderNumber');
 
-      orderNumber = lastRecord ? lastRecord.orderNumber + 1 : 1;
-    }
+    const orderNumber = lastRecord ? lastRecord.orderNumber + 1 : 1;
 
     const record = new this.recordModel({
       ...dto,
@@ -102,19 +87,24 @@ export class RecordsService {
 
     const { lotId: _, orderNumber: newOrderNumber, ...updateData } = dto;
 
-    // If orderNumber is being updated, check uniqueness
-    if (newOrderNumber !== undefined && newOrderNumber !== existing.orderNumber) {
+    // Si se cambia el número de orden, validar unicidad
+    if (
+      newOrderNumber !== undefined &&
+      newOrderNumber !== existing.orderNumber
+    ) {
       const duplicate = await this.recordModel.findOne({
-        lotId,
+        lotId: existing.lotId,
         orderNumber: newOrderNumber,
         _id: { $ne: id },
       });
+
       if (duplicate) {
         throw new HttpException(
           `El número de orden ${newOrderNumber} ya existe en este lote`,
           HttpStatus.BAD_REQUEST,
         );
       }
+
       existing.orderNumber = newOrderNumber;
     }
 
@@ -127,13 +117,13 @@ export class RecordsService {
       lotId,
       userId: 'lot_operator',
       before: stateBefore,
-      after: updateData,
+      after: updated.toObject(),
     });
 
     return updated;
   }
 
-  // ================== DELETE (ADMIN) ==================
+  // ================== DELETE ==================
   async delete(id: string, userId: string) {
     const existing = await this.recordModel.findById(id);
 
@@ -199,22 +189,13 @@ export class RecordsService {
       query.orderNumber = filters.orderNumber;
 
     if (filters.truckPlate)
-      query.truckPlate = {
-        $regex: filters.truckPlate,
-        $options: 'i',
-      };
+      query.truckPlate = { $regex: filters.truckPlate, $options: 'i' };
 
     if (filters.truckDriver)
-      query.truckDriver = {
-        $regex: filters.truckDriver,
-        $options: 'i',
-      };
+      query.truckDriver = { $regex: filters.truckDriver, $options: 'i' };
 
     if (filters.cereal)
-      query.cereal = {
-        $regex: filters.cereal,
-        $options: 'i',
-      };
+      query.cereal = { $regex: filters.cereal, $options: 'i' };
 
     if (filters.dateFrom || filters.dateTo) {
       query.date = {};

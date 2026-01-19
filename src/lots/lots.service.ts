@@ -16,10 +16,7 @@ export class LotsService {
   private activeLotCode: string | null = null;
 
   async setActiveLot(code: string) {
-    // Desactivar todos
-    await this.lotModel.updateMany({}, { active: false });
-
-    // Buscar el lote por código
+    // No deactivates other lots – multiple active allowed
     const lot = await this.lotModel.findOneAndUpdate(
       { code },
       { active: true },
@@ -81,21 +78,14 @@ export class LotsService {
   }) {
     const query: any = {};
 
+    // Only filter by active when showDeleted is false
     if (!filters.showDeleted) {
       query.active = true;
     }
 
-    if (filters.code) {
-      query.code = filters.code;
-    }
-
-    if (filters.name) {
-      query.name = { $regex: filters.name, $options: 'i' };
-    }
-
-    if (filters.cereal) {
-      query.cereal = { $regex: filters.cereal, $options: 'i' };
-    }
+    if (filters.code) query.code = filters.code;
+    if (filters.name) query.name = { $regex: filters.name, $options: 'i' };
+    if (filters.cereal) query.cereal = { $regex: filters.cereal, $options: 'i' };
 
     const skip = (filters.page - 1) * filters.limit;
     const sortOrder = filters.order === 'asc' ? 1 : -1;
@@ -107,7 +97,6 @@ export class LotsService {
         .skip(skip)
         .limit(filters.limit)
         .exec(),
-
       this.lotModel.countDocuments(query),
     ]);
 
@@ -119,6 +108,4 @@ export class LotsService {
       data,
     };
   }
-
-  
 }
